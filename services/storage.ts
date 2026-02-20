@@ -14,9 +14,9 @@ const STORAGE_KEYS = {
 
 const INITIAL_ADMIN: User = {
   id: '1',
-  name: 'System Admin',
-  username: 'admin',
-  passwordHash: 'admin123',
+  name: 'Kahoro',
+  username: 'Kahoro',
+  passwordHash: 'Kahoro890',
   role: UserRole.ADMIN,
   createdAt: Date.now()
 };
@@ -24,12 +24,21 @@ const INITIAL_ADMIN: User = {
 export const storage = {
   getUsers: (): User[] => {
     const data = localStorage.getItem(STORAGE_KEYS.USERS);
+    let users: User[];
+    
     if (!data) {
-      const initial = [INITIAL_ADMIN];
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(initial));
-      return initial;
+      users = [INITIAL_ADMIN];
+    } else {
+      users = JSON.parse(data);
+      // Migration: If the old 'admin' user exists with ID '1', update it to 'Kahoro'
+      const adminIndex = users.findIndex(u => u.id === '1' && u.username === 'admin');
+      if (adminIndex !== -1) {
+        users[adminIndex] = { ...users[adminIndex], ...INITIAL_ADMIN };
+      }
     }
-    return JSON.parse(data);
+    
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    return users;
   },
   saveUsers: (users: User[]) => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)),
 

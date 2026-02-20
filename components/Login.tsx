@@ -80,12 +80,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           >
             SIGN IN
           </button>
-
-          <div className="pt-6 text-center">
-            <p className="text-xs text-gray-600">
-              Default Admin: <strong>admin</strong> / <strong>admin123</strong>
-            </p>
-          </div>
         </form>
         
         <div className="bg-yellow-50 p-4 text-center border-t border-yellow-100">
