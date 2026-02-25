@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { storage } from '../services/storage';
 
@@ -7,10 +7,25 @@ const CATEGORIES = ['General', 'Electronics', 'Stationery', 'Beverages', 'Servic
 const UNITS = ['Pcs', 'Kg', 'Ltr', 'Box', 'Set', 'Hrs'];
 
 const Inventory: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>(storage.getProducts());
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const p = await storage.getProducts();
+        setProducts(p);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -41,36 +56,54 @@ const Inventory: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.barcode || formData.price < 0) {
       alert("Please fill all required fields correctly.");
       return;
     }
 
-    let updatedList: Product[];
-    if (editingProduct) {
-      updatedList = products.map(p => p.id === editingProduct.id ? { ...p, ...formData } : p);
-    } else {
-      const newProduct: Product = {
-        id: `PROD-${Date.now()}`,
-        ...formData,
-        createdAt: Date.now()
-      };
-      updatedList = [...products, newProduct];
-    }
+    try {
+      let updatedList: Product[];
+      if (editingProduct) {
+        updatedList = products.map(p => p.id === editingProduct.id ? { ...p, ...formData } : p);
+      } else {
+        const newProduct: Product = {
+          id: `PROD-${Date.now()}`,
+          ...formData,
+          createdAt: Date.now()
+        };
+        updatedList = [...products, newProduct];
+      }
 
-    storage.saveProducts(updatedList);
-    setProducts(updatedList);
-    setIsModalOpen(false);
+      await storage.saveProducts(updatedList);
+      setProducts(updatedList);
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Error saving product. Please check your connection.');
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure? This will permanently remove the product.")) {
-      const updated = products.filter(p => p.id !== id);
-      storage.saveProducts(updated);
-      setProducts(updated);
+      try {
+        await storage.deleteProduct(id);
+        const updated = products.filter(p => p.id !== id);
+        setProducts(updated);
+      } catch (err: any) {
+        alert(`Error deleting product: ${err.message || 'Unknown error'}`);
+        console.error(err);
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
 
   const downloadCSV = () => {
     const headers = ['Barcode', 'Name', 'Category', 'Buying Price', 'Selling Price', 'Stock', 'Unit'];

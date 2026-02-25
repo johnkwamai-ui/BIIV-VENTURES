@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { Product, Sale, SaleItem, PaymentMethod, User } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Product, Sale, SaleItem, PaymentMethod, User, Customer } from '../types';
 import { storage } from '../services/storage';
 import Receipt from './Receipt';
 
@@ -11,7 +11,9 @@ interface POSProps {
 const CASH_SHORTCUTS = [50, 100, 200, 500, 1000];
 
 const POS: React.FC<POSProps> = ({ user }) => {
-  const [products, setProducts] = useState<Product[]>(storage.getProducts());
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [cart, setCart] = useState<SaleItem[]>([]);
@@ -20,8 +22,42 @@ const POS: React.FC<POSProps> = ({ user }) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [p, c] = await Promise.all([
+          storage.getProducts(),
+          storage.getCustomers()
+        ]);
+        setProducts(p);
+        setCustomers(c);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleCustomerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedCustomerId(id);
+    if (id) {
+      const customer = customers.find(c => c.id === id);
+      if (customer) {
+        setCustomerName(customer.name);
+        setCustomerPhone(customer.phone);
+      }
+    } else {
+      setCustomerName('');
+      setCustomerPhone('');
+    }
+  };
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.category || 'General')))], [products]);
 
@@ -61,7 +97,7 @@ const POS: React.FC<POSProps> = ({ user }) => {
   const totalAmount = Math.max(0, subtotal - discount);
   const balance = totalAmount - amountPaid;
 
-  const processSale = () => {
+  const processSale = async () => {
     if (cart.length === 0) return;
     const newSale: Sale = {
       id: `SALE-${Date.now()}`,
@@ -80,20 +116,49 @@ const POS: React.FC<POSProps> = ({ user }) => {
       createdAt: Date.now()
     };
 
-    const allProducts = storage.getProducts();
-    const updatedProducts = allProducts.map(p => {
-      const cartItem = cart.find(ci => ci.productId === p.id);
-      return cartItem ? { ...p, stockQuantity: p.stockQuantity - cartItem.quantity } : p;
-    });
+    try {
+      const allProducts = await storage.getProducts();
+      const updatedProducts = allProducts.map(p => {
+        const cartItem = cart.find(ci => ci.productId === p.id);
+        return cartItem ? { ...p, stockQuantity: p.stockQuantity - cartItem.quantity } : p;
+      });
 
-    storage.saveProducts(updatedProducts);
-    setProducts(updatedProducts);
-    storage.saveSales([newSale, ...storage.getSales()]);
+      const allSales = await storage.getSales();
+      
+      const promises: Promise<any>[] = [
+        storage.saveProducts(updatedProducts),
+        storage.saveSales([newSale, ...allSales])
+      ];
 
-    setCurrentSale(newSale);
-    setShowReceipt(true);
-    setCart([]); setDiscount(0); setAmountPaid(0); setCustomerName(''); setCustomerPhone('');
+      // Update customer debt if selected
+      if (selectedCustomerId && balance > 0) {
+        const allCustomers = await storage.getCustomers();
+        const updatedCustomers = allCustomers.map(c => 
+          c.id === selectedCustomerId ? { ...c, debt: c.debt + balance } : c
+        );
+        promises.push(storage.saveCustomers(updatedCustomers));
+        setCustomers(updatedCustomers);
+      }
+
+      await Promise.all(promises);
+
+      setProducts(updatedProducts);
+      setCurrentSale(newSale);
+      setShowReceipt(true);
+      setCart([]); setDiscount(0); setAmountPaid(0); setCustomerName(''); setCustomerPhone(''); setSelectedCustomerId('');
+    } catch (err) {
+      alert('Error processing sale. Please check your connection.');
+      console.error(err);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full animate-in fade-in slide-in-from-left-4 duration-500">
@@ -139,6 +204,16 @@ const POS: React.FC<POSProps> = ({ user }) => {
         </div>
 
         <div className="p-4 space-y-3 bg-gray-50 border-b">
+          <select 
+            className="w-full text-xs p-2.5 border rounded-xl outline-none bg-white mb-2"
+            value={selectedCustomerId}
+            onChange={handleCustomerSelect}
+          >
+            <option value="">-- Select Registered Customer --</option>
+            {customers.map(c => (
+              <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+            ))}
+          </select>
           <div className="grid grid-cols-2 gap-2">
             <input type="text" placeholder="Customer Name" className="text-xs p-2.5 border rounded-xl outline-none" value={customerName} onChange={e => setCustomerName(e.target.value)} />
             <input type="text" placeholder="Phone" className="text-xs p-2.5 border rounded-xl outline-none" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />

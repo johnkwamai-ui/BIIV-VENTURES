@@ -1,12 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { storage } from '../services/storage';
 
 const UsersManagement: React.FC = () => {
-  const [users, setUsers] = useState<User[]>(storage.getUsers());
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const u = await storage.getUsers();
+        setUsers(u);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,51 +46,69 @@ const UsersManagement: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.username || (!editingUser && !formData.password)) {
       alert("Please fill all fields.");
       return;
     }
 
-    let updatedList: User[];
-    if (editingUser) {
-      updatedList = users.map(u => 
-        u.id === editingUser.id ? { 
-          ...u, 
-          name: formData.name, 
-          username: formData.username, 
+    try {
+      let updatedList: User[];
+      if (editingUser) {
+        updatedList = users.map(u => 
+          u.id === editingUser.id ? { 
+            ...u, 
+            name: formData.name, 
+            username: formData.username, 
+            role: formData.role,
+            passwordHash: formData.password || u.passwordHash // only update password if provided
+          } : u
+        );
+      } else {
+        const newUser: User = {
+          id: `USER-${Date.now()}`,
+          name: formData.name,
+          username: formData.username,
+          passwordHash: formData.password,
           role: formData.role,
-          passwordHash: formData.password || u.passwordHash // only update password if provided
-        } : u
-      );
-    } else {
-      const newUser: User = {
-        id: `USER-${Date.now()}`,
-        name: formData.name,
-        username: formData.username,
-        passwordHash: formData.password,
-        role: formData.role,
-        createdAt: Date.now()
-      };
-      updatedList = [...users, newUser];
-    }
+          createdAt: Date.now()
+        };
+        updatedList = [...users, newUser];
+      }
 
-    storage.saveUsers(updatedList);
-    setUsers(updatedList);
-    setIsModalOpen(false);
+      await storage.saveUsers(updatedList);
+      setUsers(updatedList);
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Error saving user.');
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (id === '1') {
       alert("Cannot delete primary admin account.");
       return;
     }
     if (window.confirm("Are you sure you want to delete this user?")) {
-      const updated = users.filter(u => u.id !== id);
-      storage.saveUsers(updated);
-      setUsers(updated);
+      try {
+        const updated = users.filter(u => u.id !== id);
+        await storage.saveUsers(updated);
+        setUsers(updated);
+      } catch (err) {
+        alert('Error deleting user.');
+        console.error(err);
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

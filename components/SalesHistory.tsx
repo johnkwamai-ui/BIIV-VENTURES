@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Sale, User, UserRole, Product, SaleItem, PaymentMethod, SaleEditLog, ReturnLog } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Sale, User, UserRole, Product, SaleItem, PaymentMethod, SaleEditLog, ReturnLog, DeletionLog } from '../types';
 import { storage } from '../services/storage';
 import Receipt from './Receipt';
 
@@ -9,10 +9,25 @@ interface SalesHistoryProps {
 }
 
 const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
-  const [sales, setSales] = useState<Sale[]>(storage.getSales());
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   
+  useEffect(() => {
+    const fetchSales = async () => {
+      try {
+        const s = await storage.getSales();
+        setSales(s);
+      } catch (err) {
+        console.error('Error fetching sales:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSales();
+  }, []);
+
   // Edit State
   const [editForm, setEditForm] = useState<{
     items: SaleItem[];
@@ -24,7 +39,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
   const isAdmin = user.role === UserRole.ADMIN;
   const filteredSales = isAdmin ? sales : sales.filter(s => s.userId === user.id);
 
-  const handleReturnSale = (sale: Sale) => {
+  const handleReturnSale = async (sale: Sale) => {
     if (!isAdmin) return;
     if (sale.status === 'returned') {
       alert("This transaction has already been returned.");
@@ -32,46 +47,9 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
     }
 
     if (window.confirm(`Are you sure you want to RETURN this transaction (${sale.id})? All items will be added back to stock.`)) {
-      // 1. Restore Stock
-      const products = storage.getProducts();
-      const updatedProducts = products.map(p => {
-        const item = sale.items.find(i => i.productId === p.id);
-        if (item) {
-          return { ...p, stockQuantity: p.stockQuantity + item.quantity };
-        }
-        return p;
-      });
-      storage.saveProducts(updatedProducts);
-
-      // 2. Update Sale Status
-      const updatedSales = sales.map(s => 
-        s.id === sale.id ? { ...s, status: 'returned' as const } : s
-      );
-      storage.saveSales(updatedSales);
-      setSales(updatedSales);
-
-      // 3. Log Return Activity
-      const returnLogs = storage.getReturnLogs();
-      storage.saveReturnLogs([{
-        id: `RET-${Date.now()}`,
-        saleId: sale.id,
-        returnedBy: user.id,
-        returnedByName: user.name,
-        timestamp: Date.now()
-      }, ...returnLogs]);
-
-      setEditingSale(null);
-      setEditForm(null);
-      alert("Return processed successfully. Stock levels updated.");
-    }
-  };
-
-  const handleDeleteSale = (sale: Sale) => {
-    if (!isAdmin) return;
-    if (window.confirm("Are you sure you want to permanently DELETE this sale? Stock will be restored if not already returned.")) {
-      // Only restore stock if it hasn't been returned already
-      if (sale.status !== 'returned') {
-        const products = storage.getProducts();
+      try {
+        // 1. Restore Stock
+        const products = await storage.getProducts();
         const updatedProducts = products.map(p => {
           const item = sale.items.find(i => i.productId === p.id);
           if (item) {
@@ -79,23 +57,77 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
           }
           return p;
         });
-        storage.saveProducts(updatedProducts);
+
+        // 2. Update Sale Status
+        const updatedSales = sales.map(s => 
+          s.id === sale.id ? { ...s, status: 'returned' as const } : s
+        );
+
+        // 3. Log Return Activity
+        const returnLogs = await storage.getReturnLogs();
+        const newReturnLog: ReturnLog = {
+          id: `RET-${Date.now()}`,
+          saleId: sale.id,
+          returnedBy: user.id,
+          returnedByName: user.name,
+          timestamp: Date.now()
+        };
+
+        await Promise.all([
+          storage.saveProducts(updatedProducts),
+          storage.saveSales(updatedSales),
+          storage.saveReturnLogs([newReturnLog, ...returnLogs])
+        ]);
+
+        setSales(updatedSales);
+        setEditingSale(null);
+        setEditForm(null);
+        alert("Return processed successfully. Stock levels updated.");
+      } catch (err) {
+        alert('Error processing return.');
+        console.error(err);
       }
+    }
+  };
 
-      const updatedSales = sales.filter(s => s.id !== sale.id);
-      storage.saveSales(updatedSales);
-      setSales(updatedSales);
+  const handleDeleteSale = async (sale: Sale) => {
+    if (!isAdmin) return;
+    if (window.confirm("Are you sure you want to permanently DELETE this sale? Stock will be restored if not already returned.")) {
+      try {
+        // Only restore stock if it hasn't been returned already
+        if (sale.status !== 'returned') {
+          const products = await storage.getProducts();
+          const updatedProducts = products.map(p => {
+            const item = sale.items.find(i => i.productId === p.id);
+            if (item) {
+              return { ...p, stockQuantity: p.stockQuantity + item.quantity };
+            }
+            return p;
+          });
+          await storage.saveProducts(updatedProducts);
+        }
 
-      const logs = storage.getLogs();
-      storage.saveLogs([{
-        id: `LOG-${Date.now()}`,
-        saleId: sale.id,
-        deletedBy: user.id,
-        deletedByName: user.name,
-        timestamp: Date.now()
-      }, ...logs]);
+        const updatedSales = sales.filter(s => s.id !== sale.id);
+        const logs = await storage.getLogs();
+        const newLog: DeletionLog = {
+          id: `LOG-${Date.now()}`,
+          saleId: sale.id,
+          deletedBy: user.id,
+          deletedByName: user.name,
+          timestamp: Date.now()
+        };
 
-      alert("Sale deleted and data updated.");
+        await Promise.all([
+          storage.saveSales(updatedSales),
+          storage.saveLogs([newLog, ...logs])
+        ]);
+
+        setSales(updatedSales);
+        alert("Sale deleted and data updated.");
+      } catch (err) {
+        alert('Error deleting sale.');
+        console.error(err);
+      }
     }
   };
 
@@ -113,77 +145,96 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
     });
   };
 
-  const handleUpdateEditItemQty = (productId: string, newQty: number) => {
+  const handleUpdateEditItemQty = async (productId: string, newQty: number) => {
     if (!editForm) return;
     if (newQty < 0) return;
     
-    const product = storage.getProducts().find(p => p.id === productId);
-    const originalItem = editingSale?.items.find(i => i.productId === productId);
-    const originalQty = originalItem?.quantity || 0;
-    const currentStock = product?.stockQuantity || 0;
-    const maxAvailable = currentStock + originalQty;
+    try {
+      const products = await storage.getProducts();
+      const product = products.find(p => p.id === productId);
+      const originalItem = editingSale?.items.find(i => i.productId === productId);
+      const originalQty = originalItem?.quantity || 0;
+      const currentStock = product?.stockQuantity || 0;
+      const maxAvailable = currentStock + originalQty;
 
-    if (newQty > maxAvailable) {
-      alert(`Insufficient stock! Only ${maxAvailable} available in total.`);
-      return;
+      if (newQty > maxAvailable) {
+        alert(`Insufficient stock! Only ${maxAvailable} available in total.`);
+        return;
+      }
+
+      setEditForm({
+        ...editForm,
+        items: editForm.items.map(item => 
+          item.productId === productId ? { ...item, quantity: newQty } : item
+        )
+      });
+    } catch (err) {
+      console.error(err);
     }
-
-    setEditForm({
-      ...editForm,
-      items: editForm.items.map(item => 
-        item.productId === productId ? { ...item, quantity: newQty } : item
-      )
-    });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingSale || !editForm) return;
 
-    const newSubtotal = editForm.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const newTotal = Math.max(0, newSubtotal - editForm.discount);
-    const newBalance = newTotal - editForm.amountPaid;
+    try {
+      const newSubtotal = editForm.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+      const newTotal = Math.max(0, newSubtotal - editForm.discount);
+      const newBalance = newTotal - editForm.amountPaid;
 
-    const products = storage.getProducts();
-    const updatedProducts = products.map(p => {
-      const originalItem = editingSale.items.find(i => i.productId === p.id);
-      const newItem = editForm.items.find(i => i.productId === p.id);
-      const originalQty = originalItem?.quantity || 0;
-      const newQty = newItem?.quantity || 0;
-      return { ...p, stockQuantity: p.stockQuantity + originalQty - newQty };
-    });
+      const products = await storage.getProducts();
+      const updatedProducts = products.map(p => {
+        const originalItem = editingSale.items.find(i => i.productId === p.id);
+        const newItem = editForm.items.find(i => i.productId === p.id);
+        const originalQty = originalItem?.quantity || 0;
+        const newQty = newItem?.quantity || 0;
+        return { ...p, stockQuantity: p.stockQuantity + originalQty - newQty };
+      });
 
-    const updatedSale: Sale = {
-      ...editingSale,
-      items: editForm.items.filter(item => item.quantity > 0),
-      subtotal: newSubtotal,
-      totalAmount: newTotal,
-      discount: editForm.discount,
-      amountPaid: editForm.amountPaid,
-      balance: newBalance,
-      paymentMethod: editForm.paymentMethod
-    };
+      const updatedSale: Sale = {
+        ...editingSale,
+        items: editForm.items.filter(item => item.quantity > 0),
+        subtotal: newSubtotal,
+        totalAmount: newTotal,
+        discount: editForm.discount,
+        amountPaid: editForm.amountPaid,
+        balance: newBalance,
+        paymentMethod: editForm.paymentMethod
+      };
 
-    const updatedSales = sales.map(s => s.id === updatedSale.id ? updatedSale : s);
+      const updatedSales = sales.map(s => s.id === updatedSale.id ? updatedSale : s);
+      const editLogs = await storage.getEditLogs();
+      const newEditLog: SaleEditLog = {
+        id: `ELOG-${Date.now()}`,
+        saleId: editingSale.id,
+        editedBy: user.id,
+        editedByName: user.name,
+        timestamp: Date.now(),
+        changes: `Items, discount or payment adjusted by Admin.`
+      };
 
-    const editLogs = storage.getEditLogs();
-    const newEditLog: SaleEditLog = {
-      id: `ELOG-${Date.now()}`,
-      saleId: editingSale.id,
-      editedBy: user.id,
-      editedByName: user.name,
-      timestamp: Date.now(),
-      changes: `Items, discount or payment adjusted by Admin.`
-    };
+      await Promise.all([
+        storage.saveProducts(updatedProducts),
+        storage.saveSales(updatedSales),
+        storage.saveEditLogs([newEditLog, ...editLogs])
+      ]);
 
-    storage.saveProducts(updatedProducts);
-    storage.saveSales(updatedSales);
-    storage.saveEditLogs([newEditLog, ...editLogs]);
-
-    setSales(updatedSales);
-    setEditingSale(null);
-    setEditForm(null);
-    alert("Sale updated and stock reconciled successfully.");
+      setSales(updatedSales);
+      setEditingSale(null);
+      setEditForm(null);
+      alert("Sale updated and stock reconciled successfully.");
+    } catch (err) {
+      alert('Error updating sale.');
+      console.error(err);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

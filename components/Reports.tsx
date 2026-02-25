@@ -1,14 +1,33 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { storage } from '../services/storage';
+import { Sale, Expense } from '../types';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Reports: React.FC = () => {
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [allSales, setAllSales] = useState<Sale[]>([]);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allSales = storage.getSales();
-  const allExpenses = storage.getExpenses();
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [s, e] = await Promise.all([
+          storage.getSales(),
+          storage.getExpenses()
+        ]);
+        setAllSales(s);
+        setAllExpenses(e);
+      } catch (err) {
+        console.error('Error fetching report data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const filteredData = useMemo(() => {
     const start = new Date(startDate).setHours(0, 0, 0, 0);
@@ -49,6 +68,14 @@ const Reports: React.FC = () => {
       topProducts: Object.values(productMap).sort((a,b) => b.revenue - a.revenue).slice(0, 10)
     };
   }, [filteredData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
 
   const downloadSalesCSV = () => {
     const headers = ['Sale ID', 'Date', 'Customer', 'Items', 'Total', 'Paid', 'Debt', 'Method'];
@@ -127,7 +154,7 @@ const Reports: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-96 min-h-[400px]">
           <h3 className="text-lg font-black mb-4">Financial Health</h3>
           <div className="space-y-6 mt-6">
             <div className="flex flex-col">

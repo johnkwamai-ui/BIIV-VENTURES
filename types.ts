@@ -56,6 +56,16 @@ export interface Sale {
   createdAt: number;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  debt: number;
+  createdAt: number;
+}
+
 export interface Expense {
   id: string;
   description: string;

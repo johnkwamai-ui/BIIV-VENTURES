@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Expense, User } from '../types';
 import { storage } from '../services/storage';
 
@@ -10,7 +10,8 @@ interface ExpensesProps {
 const EXPENSE_CATEGORIES: Expense['category'][] = ['Rent', 'Salaries', 'Utilities', 'Stock', 'Other'];
 
 const Expenses: React.FC<ExpensesProps> = ({ user }) => {
-  const [expenses, setExpenses] = useState<Expense[]>(storage.getExpenses());
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<Expense>>({
     description: '',
@@ -19,35 +20,67 @@ const Expenses: React.FC<ExpensesProps> = ({ user }) => {
     date: Date.now()
   });
 
-  const handleSave = () => {
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const e = await storage.getExpenses();
+        setExpenses(e);
+      } catch (err) {
+        console.error('Error fetching expenses:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, []);
+
+  const handleSave = async () => {
     if (!formData.description || !formData.amount || formData.amount <= 0) {
       alert("Please enter a valid description and amount.");
       return;
     }
 
-    const newExpense: Expense = {
-      id: `EXP-${Date.now()}`,
-      description: formData.description!,
-      amount: formData.amount!,
-      category: formData.category as Expense['category'],
-      date: new Date(formData.date!).getTime(),
-      recordedBy: user.name
-    };
+    try {
+      const newExpense: Expense = {
+        id: `EXP-${Date.now()}`,
+        description: formData.description!,
+        amount: formData.amount!,
+        category: formData.category as Expense['category'],
+        date: new Date(formData.date!).getTime(),
+        recordedBy: user.name
+      };
 
-    const updated = [newExpense, ...expenses];
-    storage.saveExpenses(updated);
-    setExpenses(updated);
-    setIsModalOpen(false);
-    setFormData({ description: '', amount: 0, category: 'Other', date: Date.now() });
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Delete this expense record?")) {
-      const updated = expenses.filter(e => e.id !== id);
-      storage.saveExpenses(updated);
+      const updated = [newExpense, ...expenses];
+      await storage.saveExpenses(updated);
       setExpenses(updated);
+      setIsModalOpen(false);
+      setFormData({ description: '', amount: 0, category: 'Other', date: Date.now() });
+    } catch (err) {
+      alert('Error saving expense.');
+      console.error(err);
     }
   };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Delete this expense record?")) {
+      try {
+        const updated = expenses.filter(e => e.id !== id);
+        await storage.saveExpenses(updated);
+        setExpenses(updated);
+      } catch (err) {
+        alert('Error deleting expense.');
+        console.error(err);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

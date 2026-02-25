@@ -13,7 +13,7 @@ const PasswordReset: React.FC<PasswordResetProps> = ({ user }) => {
   const [confirmPass, setConfirmPass] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  const handleUpdate = (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // In our simplified storage, we store plain text as hash for demonstration.
@@ -33,19 +33,24 @@ const PasswordReset: React.FC<PasswordResetProps> = ({ user }) => {
       return;
     }
 
-    const users = storage.getUsers();
-    const updatedUsers = users.map(u => 
-      u.id === user.id ? { ...u, passwordHash: newPass } : u
-    );
-    
-    storage.saveUsers(updatedUsers);
-    // Update local session as well
-    storage.setCurrentUser({ ...user, passwordHash: newPass });
+    try {
+      const users = await storage.getUsers();
+      const updatedUsers = users.map(u => 
+        u.id === user.id ? { ...u, passwordHash: newPass } : u
+      );
+      
+      await storage.saveUsers(updatedUsers);
+      // Update local session as well
+      storage.setCurrentUser({ ...user, passwordHash: newPass });
 
-    setMessage({ text: 'Password updated successfully!', type: 'success' });
-    setCurrentPass('');
-    setNewPass('');
-    setConfirmPass('');
+      setMessage({ text: 'Password updated successfully!', type: 'success' });
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmPass('');
+    } catch (err) {
+      setMessage({ text: 'Error updating password.', type: 'error' });
+      console.error(err);
+    }
   };
 
   return (

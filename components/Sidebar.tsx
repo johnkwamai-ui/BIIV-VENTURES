@@ -15,6 +15,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, role, onLogo
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', show: true },
     { id: 'pos', label: 'Point of Sale', icon: '🛒', show: true },
+    { id: 'customers', label: 'Customers', icon: '👤', show: true },
     { id: 'inventory', label: 'Inventory', icon: '📦', show: isAdmin },
     { id: 'expenses', label: 'Expenses', icon: '💸', show: isAdmin },
     { id: 'history', label: 'Sales History', icon: '📝', show: true },

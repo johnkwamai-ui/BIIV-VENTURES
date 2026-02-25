@@ -1,6 +1,6 @@
 
-import React, { useMemo } from 'react';
-import { User, UserRole } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { User, UserRole, Sale, Product, Expense } from '../types';
 import { storage } from '../services/storage';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -9,9 +9,31 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
-  const sales = storage.getSales();
-  const products = storage.getProducts();
-  const expenses = storage.getExpenses();
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [s, p, e] = await Promise.all([
+          storage.getSales(),
+          storage.getProducts(),
+          storage.getExpenses()
+        ]);
+        setSales(s);
+        setProducts(p);
+        setExpenses(e);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const isAdmin = user.role === UserRole.ADMIN;
 
   const today = new Date().setHours(0, 0, 0, 0);
@@ -46,6 +68,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     { label: "Total Stock Value", value: `KES ${products.reduce((a, b) => a + (b.price * b.stockQuantity), 0).toLocaleString()}`, icon: "📦", color: "bg-purple-100 text-purple-700" },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#800000]"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -68,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <span>Weekly Revenue Trend</span>
             <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full font-bold">+ {((chartData[6].revenue / (chartData[5].revenue || 1) - 1) * 100).toFixed(1)}% vs yesterday</span>
           </h3>
-          <div className="h-72">
+          <div className="h-72 min-h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>

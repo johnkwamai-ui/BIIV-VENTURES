@@ -1,16 +1,6 @@
-
 import { User, Product, Sale, DeletionLog, SaleEditLog, ReturnLog, Expense, UserRole } from '../types';
 
-const STORAGE_KEYS = {
-  USERS: 'b7_users',
-  PRODUCTS: 'b7_products',
-  SALES: 'b7_sales',
-  LOGS: 'b7_logs',
-  EDIT_LOGS: 'b7_edit_logs',
-  RETURN_LOGS: 'b7_return_logs',
-  EXPENSES: 'b7_expenses',
-  SESSION: 'b7_session'
-};
+const SESSION_KEY = 'b7_session';
 
 const INITIAL_ADMIN: User = {
   id: '1',
@@ -21,69 +11,99 @@ const INITIAL_ADMIN: User = {
   createdAt: Date.now()
 };
 
+async function apiCall(endpoint: string, body: any) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw error;
+  }
+  return response.json();
+}
+
 export const storage = {
-  getUsers: (): User[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.USERS);
-    let users: User[];
-    
-    if (!data) {
-      users = [INITIAL_ADMIN];
-    } else {
-      users = JSON.parse(data);
-      // Migration: If the old 'admin' user exists with ID '1', update it to 'Kahoro'
-      const adminIndex = users.findIndex(u => u.id === '1' && u.username === 'admin');
-      if (adminIndex !== -1) {
-        users[adminIndex] = { ...users[adminIndex], ...INITIAL_ADMIN };
-      }
+  getUsers: async (): Promise<User[]> => {
+    const data = await apiCall('/api/db/users/select', {});
+    if (!data || data.length === 0) {
+      await apiCall('/api/db/users/insert', { values: [INITIAL_ADMIN] });
+      return [INITIAL_ADMIN];
     }
-    
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    return users;
+    return data;
   },
-  saveUsers: (users: User[]) => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)),
+  saveUsers: async (users: User[]) => {
+    await apiCall('/api/db/users/upsert', { values: users });
+  },
 
-  getProducts: (): Product[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    return data ? JSON.parse(data) : [];
+  getProducts: async (): Promise<Product[]> => {
+    return apiCall('/api/db/products/select', {});
   },
-  saveProducts: (products: Product[]) => localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products)),
+  saveProducts: async (products: Product[]) => {
+    await apiCall('/api/db/products/upsert', { values: products });
+  },
+  deleteProduct: async (id: string) => {
+    await apiCall('/api/db/products/delete', { id });
+  },
 
-  getSales: (): Sale[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.SALES);
-    return data ? JSON.parse(data) : [];
+  getSales: async (): Promise<Sale[]> => {
+    return apiCall('/api/db/sales/select', {});
   },
-  saveSales: (sales: Sale[]) => localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales)),
+  saveSales: async (sales: Sale[]) => {
+    await apiCall('/api/db/sales/upsert', { values: sales });
+  },
 
-  getExpenses: (): Expense[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-    return data ? JSON.parse(data) : [];
+  getExpenses: async (): Promise<Expense[]> => {
+    return apiCall('/api/db/expenses/select', {});
   },
-  saveExpenses: (expenses: Expense[]) => localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses)),
+  saveExpenses: async (expenses: Expense[]) => {
+    await apiCall('/api/db/expenses/upsert', { values: expenses });
+  },
 
-  getLogs: (): DeletionLog[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.LOGS);
-    return data ? JSON.parse(data) : [];
+  getCustomers: async (): Promise<Customer[]> => {
+    return apiCall('/api/db/customers/select', {});
   },
-  saveLogs: (logs: DeletionLog[]) => localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs)),
+  saveCustomers: async (customers: Customer[]) => {
+    await apiCall('/api/db/customers/upsert', { values: customers });
+  },
+  deleteCustomer: async (id: string) => {
+    await apiCall('/api/db/customers/delete', { id });
+  },
 
-  getEditLogs: (): SaleEditLog[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.EDIT_LOGS);
-    return data ? JSON.parse(data) : [];
+  getLogs: async (): Promise<DeletionLog[]> => {
+    return apiCall('/api/db/deletion_logs/select', {});
   },
-  saveEditLogs: (logs: SaleEditLog[]) => localStorage.setItem(STORAGE_KEYS.EDIT_LOGS, JSON.stringify(logs)),
+  saveLogs: async (logs: DeletionLog[]) => {
+    await apiCall('/api/db/deletion_logs/upsert', { values: logs });
+  },
 
-  getReturnLogs: (): ReturnLog[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.RETURN_LOGS);
-    return data ? JSON.parse(data) : [];
+  getEditLogs: async (): Promise<SaleEditLog[]> => {
+    return apiCall('/api/db/sale_edit_logs/select', {});
   },
-  saveReturnLogs: (logs: ReturnLog[]) => localStorage.setItem(STORAGE_KEYS.RETURN_LOGS, JSON.stringify(logs)),
+  saveEditLogs: async (logs: SaleEditLog[]) => {
+    await apiCall('/api/db/sale_edit_logs/upsert', { values: logs });
+  },
+
+  getReturnLogs: async (): Promise<ReturnLog[]> => {
+    return apiCall('/api/db/return_logs/select', {});
+  },
+  saveReturnLogs: async (logs: ReturnLog[]) => {
+    await apiCall('/api/db/return_logs/upsert', { values: logs });
+  },
 
   getCurrentUser: (): User | null => {
-    const data = localStorage.getItem(STORAGE_KEYS.SESSION);
+    const data = localStorage.getItem(SESSION_KEY);
     return data ? JSON.parse(data) : null;
   },
   setCurrentUser: (user: User | null) => {
-    if (user) localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
-    else localStorage.removeItem(STORAGE_KEYS.SESSION);
+    if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    else localStorage.removeItem(SESSION_KEY);
+  },
+
+  seedDatabase: async () => {
+    const response = await fetch('/api/seed', { method: 'POST' });
+    if (!response.ok) throw new Error('Seeding failed');
+    return response.json();
   }
 };
