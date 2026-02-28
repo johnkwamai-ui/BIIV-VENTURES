@@ -1,4 +1,4 @@
-import { User, Product, Sale, DeletionLog, SaleEditLog, ReturnLog, Expense, UserRole } from '../types';
+import { User, Product, Sale, DeletionLog, SaleEditLog, ReturnLog, Expense, UserRole, Customer, Payment } from '../types';
 
 const SESSION_KEY = 'b7_session';
 
@@ -69,6 +69,16 @@ export const storage = {
   },
   deleteCustomer: async (id: string) => {
     await apiCall('/api/db/customers/delete', { id });
+  },
+
+  getPayments: async (saleId?: string, customerId?: string): Promise<Payment[]> => {
+    const body: any = {};
+    if (saleId) body.saleId = saleId;
+    if (customerId) body.customerId = customerId;
+    return apiCall('/api/db/payments/select', body);
+  },
+  savePayment: async (payment: Payment) => {
+    await apiCall('/api/db/payments/insert', { values: [payment] });
   },
 
   getLogs: async (): Promise<DeletionLog[]> => {

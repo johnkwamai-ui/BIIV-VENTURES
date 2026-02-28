@@ -40,6 +40,16 @@ const Receipt: React.FC<ReceiptProps> = ({ sale }) => {
           <span>Method:</span>
           <span>{sale.paymentMethod}</span>
         </div>
+        <div className="flex justify-between border-t border-dashed pt-1 mt-1">
+          <span>Customer:</span>
+          <span className="font-bold">{sale.customerName || 'Walk-in'}</span>
+        </div>
+        {sale.customerPhone && sale.customerPhone !== 'N/A' && (
+          <div className="flex justify-between">
+            <span>Phone:</span>
+            <span>{sale.customerPhone}</span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2 mb-4">

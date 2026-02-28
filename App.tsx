@@ -13,6 +13,7 @@ import Reports from './components/Reports';
 import PasswordReset from './components/PasswordReset';
 import Expenses from './components/Expenses';
 import Customers from './components/Customers';
+import DebtManagement from './components/DebtManagement';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -50,6 +51,7 @@ const App: React.FC = () => {
               case 'history': return <SalesHistory user={currentUser} />;
               case 'expenses': return <Expenses user={currentUser} />;
               case 'customers': return <Customers />;
+              case 'debt': return <DebtManagement user={currentUser} />;
               case 'reports': return <Reports />;
               case 'users': return <UsersManagement />;
               case 'profile': return <PasswordReset user={currentUser} />;

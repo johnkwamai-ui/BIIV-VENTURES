@@ -88,19 +88,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </form>
         
         <div className="bg-yellow-50 p-4 text-center border-t border-yellow-100 space-y-2">
-          <button 
-            onClick={async () => {
-              try {
-                await storage.seedDatabase();
-                alert('Database seeded! You can now login with:\n- john / pass123 (Sales)\n- jane / pass456 (Admin)');
-              } catch (e) {
-                alert('Seeding failed. Make sure tables exist in Supabase.');
-              }
-            }}
-            className="text-[10px] font-black text-[#800000] uppercase tracking-widest hover:underline"
-          >
-            Seed Dummy Data
-          </button>
           <p className="text-xs text-gray-400 font-medium">&copy; 2024 BIIV VENTURES LTD. All rights reserved.</p>
         </div>
       </div>

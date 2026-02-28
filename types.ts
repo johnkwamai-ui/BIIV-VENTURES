@@ -43,17 +43,30 @@ export interface Sale {
   id: string;
   userId: string;
   userName: string;
+  customerId?: string; // Link to customer
   customerName?: string;
   customerPhone?: string;
   subtotal: number;
   discount: number;
   totalAmount: number;
-  amountPaid: number;
-  balance: number;
-  paymentMethod: PaymentMethod;
+  amountPaid: number; // Total amount paid across all payment records
+  balance: number; // Current balance due
+  paymentMethod: PaymentMethod; // Initial payment method
   items: SaleItem[];
-  status: 'completed' | 'returned';
+  status: 'completed' | 'returned' | 'partial' | 'unpaid' | 'paid';
   createdAt: number;
+}
+
+export interface Payment {
+  id: string;
+  saleId: string;
+  customerId: string;
+  amount: number;
+  paymentMode: PaymentMethod;
+  reference?: string;
+  receivedBy: string; // User ID
+  receivedByName: string;
+  paidAt: number;
 }
 
 export interface Customer {

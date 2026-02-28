@@ -13,6 +13,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [errorAlert, setErrorAlert] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchSales = async () => {
@@ -73,11 +74,22 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
           timestamp: Date.now()
         };
 
-        await Promise.all([
+        const promises: Promise<any>[] = [
           storage.saveProducts(updatedProducts),
           storage.saveSales(updatedSales),
           storage.saveReturnLogs([newReturnLog, ...returnLogs])
-        ]);
+        ];
+
+        // 4. Update Customer Debt if applicable
+        if (sale.customerId && sale.balance > 0) {
+          const customers = await storage.getCustomers();
+          const updatedCustomers = customers.map(c => 
+            c.id === sale.customerId ? { ...c, debt: Math.max(0, c.debt - sale.balance) } : c
+          );
+          promises.push(storage.saveCustomers(updatedCustomers));
+        }
+
+        await Promise.all(promises);
 
         setSales(updatedSales);
         setEditingSale(null);
@@ -117,10 +129,21 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
           timestamp: Date.now()
         };
 
-        await Promise.all([
+        const promises: Promise<any>[] = [
           storage.saveSales(updatedSales),
           storage.saveLogs([newLog, ...logs])
-        ]);
+        ];
+
+        // Update Customer Debt if applicable
+        if (sale.customerId && sale.balance > 0) {
+          const customers = await storage.getCustomers();
+          const updatedCustomers = customers.map(c => 
+            c.id === sale.customerId ? { ...c, debt: Math.max(0, c.debt - sale.balance) } : c
+          );
+          promises.push(storage.saveCustomers(updatedCustomers));
+        }
+
+        await Promise.all(promises);
 
         setSales(updatedSales);
         alert("Sale deleted and data updated.");
@@ -176,11 +199,17 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
   const handleSaveEdit = async () => {
     if (!editingSale || !editForm) return;
 
-    try {
-      const newSubtotal = editForm.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-      const newTotal = Math.max(0, newSubtotal - editForm.discount);
-      const newBalance = newTotal - editForm.amountPaid;
+    const newSubtotal = editForm.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const newTotal = Math.max(0, newSubtotal - editForm.discount);
+    const newBalance = newTotal - editForm.amountPaid;
 
+    // Validation: Debt requires a registered customer
+    if (newBalance > 0 && !editingSale.customerId) {
+      setErrorAlert("Debt is not allowed for Walk-in Customers. Please select a registered customer to record debt.");
+      return;
+    }
+
+    try {
       const products = await storage.getProducts();
       const updatedProducts = products.map(p => {
         const originalItem = editingSale.items.find(i => i.productId === p.id);
@@ -212,11 +241,25 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
         changes: `Items, discount or payment adjusted by Admin.`
       };
 
-      await Promise.all([
+      const promises: Promise<any>[] = [
         storage.saveProducts(updatedProducts),
         storage.saveSales(updatedSales),
         storage.saveEditLogs([newEditLog, ...editLogs])
-      ]);
+      ];
+
+      // Update Customer Debt if applicable
+      if (editingSale.customerId) {
+        const balanceDiff = newBalance - editingSale.balance;
+        if (balanceDiff !== 0) {
+          const customers = await storage.getCustomers();
+          const updatedCustomers = customers.map(c => 
+            c.id === editingSale.customerId ? { ...c, debt: Math.max(0, c.debt + balanceDiff) } : c
+          );
+          promises.push(storage.saveCustomers(updatedCustomers));
+        }
+      }
+
+      await Promise.all(promises);
 
       setSales(updatedSales);
       setEditingSale(null);
@@ -244,6 +287,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
             <tr>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Transaction ID</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Date</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Customer</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">User</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Method</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Total</th>
@@ -259,6 +303,10 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
                   {sale.status === 'returned' && <span className="block text-[10px] text-red-600 font-bold mt-1 uppercase">Returned</span>}
                 </td>
                 <td className="px-6 py-4 text-sm">{new Date(sale.createdAt).toLocaleString()}</td>
+                <td className="px-6 py-4">
+                  <p className="text-sm font-bold text-gray-800">{sale.customerName || 'Walk-in'}</p>
+                  {sale.customerPhone && <p className="text-[10px] text-gray-400">{sale.customerPhone}</p>}
+                </td>
                 <td className="px-6 py-4 font-medium">{sale.userName}</td>
                 <td className="px-6 py-4">
                   <span className="px-2 py-1 bg-gray-100 rounded text-xs">{sale.paymentMethod}</span>
@@ -406,6 +454,22 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
               <button onClick={() => window.print()} className="flex-1 py-3 bg-[#800000] text-white rounded-lg font-bold">🖨️ Print</button>
               <button onClick={() => setViewingSale(null)} className="flex-1 py-3 bg-gray-200 rounded-lg font-bold">Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {errorAlert && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center border border-red-100">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">⚠️</div>
+            <h3 className="text-xl font-black text-gray-800 mb-2">Action Blocked</h3>
+            <p className="text-sm text-gray-500 mb-8 leading-relaxed">{errorAlert}</p>
+            <button 
+              onClick={() => setErrorAlert(null)}
+              className="w-full py-4 bg-[#800000] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-red-900 transition-all shadow-lg shadow-red-900/20"
+            >
+              I Understand
+            </button>
           </div>
         </div>
       )}

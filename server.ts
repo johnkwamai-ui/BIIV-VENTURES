@@ -69,21 +69,21 @@ app.post('/api/db/:table/delete', async (req, res) => {
 app.post('/api/seed', async (req, res) => {
   try {
     const dummyProducts = [
-      { id: 'p1', name: 'Fresh Bread', barcode: '1001', buyingPrice: 45, price: 60, category: 'Snacks', stockQuantity: 25, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p2', name: 'Milk 500ml', barcode: '1002', buyingPrice: 55, price: 70, category: 'Beverages', stockQuantity: 30, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p3', name: 'Sugar 1kg', barcode: '1003', buyingPrice: 125, price: 150, category: 'General', stockQuantity: 50, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p4', name: 'Ballpoint Pen', barcode: '1004', buyingPrice: 12, price: 20, category: 'Stationery', stockQuantity: 100, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p5', name: 'Soda 300ml', barcode: '1005', buyingPrice: 35, price: 50, category: 'Beverages', stockQuantity: 40, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p6', name: 'Bathing Soap', barcode: '1006', buyingPrice: 65, price: 80, category: 'General', stockQuantity: 25, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p7', name: 'Cooking Oil 1L', barcode: '1007', buyingPrice: 210, price: 250, category: 'General', stockQuantity: 15, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p8', name: 'Wheat Flour 2kg', barcode: '1008', buyingPrice: 170, price: 200, category: 'General', stockQuantity: 20, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p9', name: 'Chocolate Biscuits', barcode: '1009', buyingPrice: 22, price: 35, category: 'Snacks', stockQuantity: 60, unit: 'Pcs', createdAt: Date.now() },
-      { id: 'p10', name: 'Table Salt 500g', barcode: '1010', buyingPrice: 25, price: 35, category: 'General', stockQuantity: 40, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p1', name: 'Godox V1 Sony', barcode: '1001', buyingPrice: 4500, price: 60, category: 'Electronics', stockQuantity: 2, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p2', name: 'Godox V1 Nikon', barcode: '1002', buyingPrice: 55, price: 70, category: 'Electronics', stockQuantity: 3, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p3', name: 'Godox V1 Canon', barcode: '1003', buyingPrice: 125, price: 150, category: 'Electronics', stockQuantity: 5, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p4', name: 'Godox V1pro Sony', barcode: '1004', buyingPrice: 12, price: 20, category: 'Electronics', stockQuantity: 1, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p5', name: 'Godox V1pro Nikon', barcode: '1005', buyingPrice: 35, price: 50, category: 'Electronics', stockQuantity: 4, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p6', name: 'Canon 50mm', barcode: '1006', buyingPrice: 65, price: 80, category: 'Electronics', stockQuantity: 2, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p7', name: 'Canon 85mm', barcode: '1007', buyingPrice: 210, price: 250, category: 'Electronics', stockQuantity: 1, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p8', name: 'Canon 70-200mm', barcode: '1008', buyingPrice: 170, price: 200, category: 'Electronics', stockQuantity: 2, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p9', name: 'Nikon 70-200mm', barcode: '1009', buyingPrice: 22, price: 35, category: 'Electronics', stockQuantity: 6, unit: 'Pcs', createdAt: Date.now() },
+      { id: 'p10', name: 'Sony 70-200mm', barcode: '1010', buyingPrice: 25, price: 35, category: 'Electronics', stockQuantity: 4, unit: 'Pcs', createdAt: Date.now() },
     ];
 
     const dummyUsers = [
-      { id: 'u1', name: 'John Doe', username: 'john', passwordHash: 'pass123', role: 'salesperson', createdAt: Date.now() },
-      { id: 'u2', name: 'Jane Smith', username: 'jane', passwordHash: 'pass456', role: 'admin', createdAt: Date.now() },
+      { id: 'u1', name: 'John Mukunga', username: 'johnte', passwordHash: 'pass123', role: 'salesperson', createdAt: Date.now() },
+      { id: 'u2', name: 'Wamai Kahoro', username: 'kahoro', passwordHash: 'pass456', role: 'admin', createdAt: Date.now() },
     ];
 
     const dummyExpense = [

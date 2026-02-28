@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Product, Sale, SaleItem, PaymentMethod, User, Customer } from '../types';
+import { Product, Sale, SaleItem, PaymentMethod, User, Customer, Payment } from '../types';
 import { storage } from '../services/storage';
 import Receipt from './Receipt';
 
@@ -20,11 +20,14 @@ const POS: React.FC<POSProps> = ({ user }) => {
   const [discount, setDiscount] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState('Walk-in Customer');
+  const [customerPhone, setCustomerPhone] = useState('N/A');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddData, setQuickAddData] = useState({ name: '', phone: '' });
+  const [errorAlert, setErrorAlert] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,8 +57,38 @@ const POS: React.FC<POSProps> = ({ user }) => {
         setCustomerPhone(customer.phone);
       }
     } else {
-      setCustomerName('');
-      setCustomerPhone('');
+      setCustomerName('Walk-in Customer');
+      setCustomerPhone('N/A');
+    }
+  };
+
+  const handleQuickAdd = async () => {
+    if (!quickAddData.name || !quickAddData.phone) {
+      alert('Name and Phone are required for quick add');
+      return;
+    }
+
+    try {
+      const newCustomer: Customer = {
+        id: `CUST-${Date.now()}`,
+        name: quickAddData.name,
+        phone: quickAddData.phone,
+        debt: 0,
+        createdAt: Date.now()
+      };
+
+      const updatedCustomers = [...customers, newCustomer];
+      await storage.saveCustomers(updatedCustomers);
+      
+      setCustomers(updatedCustomers);
+      setSelectedCustomerId(newCustomer.id);
+      setCustomerName(newCustomer.name);
+      setCustomerPhone(newCustomer.phone);
+      setIsQuickAddOpen(false);
+      setQuickAddData({ name: '', phone: '' });
+    } catch (err) {
+      alert('Error adding customer');
+      console.error(err);
     }
   };
 
@@ -99,10 +132,19 @@ const POS: React.FC<POSProps> = ({ user }) => {
 
   const processSale = async () => {
     if (cart.length === 0) return;
+
+    // Validation: Debt requires a registered customer
+    if (balance > 0 && !selectedCustomerId) {
+      setErrorAlert("Debt is not allowed for Walk-in Customers. Please select a registered customer to record debt.");
+      return;
+    }
+
+    const saleId = `SALE-${Date.now()}`;
     const newSale: Sale = {
-      id: `SALE-${Date.now()}`,
+      id: saleId,
       userId: user.id,
       userName: user.name,
+      customerId: selectedCustomerId || undefined,
       customerName,
       customerPhone,
       subtotal,
@@ -112,7 +154,7 @@ const POS: React.FC<POSProps> = ({ user }) => {
       balance,
       paymentMethod,
       items: cart,
-      status: 'completed',
+      status: balance <= 0 ? 'paid' : (amountPaid > 0 ? 'partial' : 'unpaid'),
       createdAt: Date.now()
     };
 
@@ -130,6 +172,21 @@ const POS: React.FC<POSProps> = ({ user }) => {
         storage.saveSales([newSale, ...allSales])
       ];
 
+      // Create initial payment record if any amount was paid
+      if (amountPaid > 0) {
+        const initialPayment: Payment = {
+          id: `PAY-${Date.now()}`,
+          saleId: saleId,
+          customerId: selectedCustomerId || 'WALK-IN',
+          amount: amountPaid,
+          paymentMode: paymentMethod,
+          receivedBy: user.id,
+          receivedByName: user.name,
+          paidAt: Date.now()
+        };
+        promises.push(storage.savePayment(initialPayment));
+      }
+
       // Update customer debt if selected
       if (selectedCustomerId && balance > 0) {
         const allCustomers = await storage.getCustomers();
@@ -145,7 +202,7 @@ const POS: React.FC<POSProps> = ({ user }) => {
       setProducts(updatedProducts);
       setCurrentSale(newSale);
       setShowReceipt(true);
-      setCart([]); setDiscount(0); setAmountPaid(0); setCustomerName(''); setCustomerPhone(''); setSelectedCustomerId('');
+      setCart([]); setDiscount(0); setAmountPaid(0); setCustomerName('Walk-in Customer'); setCustomerPhone('N/A'); setSelectedCustomerId('');
     } catch (err) {
       alert('Error processing sale. Please check your connection.');
       console.error(err);
@@ -204,16 +261,52 @@ const POS: React.FC<POSProps> = ({ user }) => {
         </div>
 
         <div className="p-4 space-y-3 bg-gray-50 border-b">
-          <select 
-            className="w-full text-xs p-2.5 border rounded-xl outline-none bg-white mb-2"
-            value={selectedCustomerId}
-            onChange={handleCustomerSelect}
-          >
-            <option value="">-- Select Registered Customer --</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
-            ))}
-          </select>
+          <div className="flex gap-2 mb-2">
+            <select 
+              className="flex-1 text-xs p-2.5 border rounded-xl outline-none bg-white"
+              value={selectedCustomerId}
+              onChange={handleCustomerSelect}
+            >
+              <option value="">Walk-in Customer (No Debt Allowed)</option>
+              {customers.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+              ))}
+            </select>
+            <button 
+              onClick={() => setIsQuickAddOpen(!isQuickAddOpen)}
+              className="px-3 bg-[#800000] text-white rounded-xl text-xs font-bold hover:bg-red-900 transition-all"
+              title="Quick Add Customer"
+            >
+              {isQuickAddOpen ? '✕' : '+'}
+            </button>
+          </div>
+
+          {isQuickAddOpen && (
+            <div className="p-3 bg-white border rounded-xl space-y-2 animate-in slide-in-from-top-2 duration-200">
+              <p className="text-[10px] font-black text-[#800000] uppercase tracking-widest">Quick Register</p>
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                className="w-full text-xs p-2 border rounded-lg outline-none" 
+                value={quickAddData.name}
+                onChange={e => setQuickAddData({...quickAddData, name: e.target.value})}
+              />
+              <input 
+                type="text" 
+                placeholder="Phone Number" 
+                className="w-full text-xs p-2 border rounded-lg outline-none" 
+                value={quickAddData.phone}
+                onChange={e => setQuickAddData({...quickAddData, phone: e.target.value})}
+              />
+              <button 
+                onClick={handleQuickAdd}
+                className="w-full py-2 bg-[#800000] text-white rounded-lg text-xs font-bold hover:bg-red-900"
+              >
+                Save & Select
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             <input type="text" placeholder="Customer Name" className="text-xs p-2.5 border rounded-xl outline-none" value={customerName} onChange={e => setCustomerName(e.target.value)} />
             <input type="text" placeholder="Phone" className="text-xs p-2.5 border rounded-xl outline-none" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
@@ -281,6 +374,22 @@ const POS: React.FC<POSProps> = ({ user }) => {
               <button onClick={() => window.print()} className="flex-1 py-4 bg-[#800000] text-white rounded-2xl font-black text-sm shadow-lg shadow-red-900/20 hover:bg-red-900 transition-all">🖨️ PRINT RECEIPT</button>
               <button onClick={() => setShowReceipt(false)} className="flex-1 py-4 bg-gray-200 text-gray-600 rounded-2xl font-black text-sm hover:bg-gray-300 transition-all">CLOSE</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {errorAlert && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center border border-red-100">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">⚠️</div>
+            <h3 className="text-xl font-black text-gray-800 mb-2">Action Blocked</h3>
+            <p className="text-sm text-gray-500 mb-8 leading-relaxed">{errorAlert}</p>
+            <button 
+              onClick={() => setErrorAlert(null)}
+              className="w-full py-4 bg-[#800000] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-red-900 transition-all shadow-lg shadow-red-900/20"
+            >
+              I Understand
+            </button>
           </div>
         </div>
       )}
