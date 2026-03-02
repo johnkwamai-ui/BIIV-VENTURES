@@ -28,6 +28,7 @@ const POS: React.FC<POSProps> = ({ user }) => {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddData, setQuickAddData] = useState({ name: '', phone: '' });
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
+  const [activeMobileTab, setActiveMobileTab] = useState<'products' | 'cart'>('products');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -218,8 +219,33 @@ const POS: React.FC<POSProps> = ({ user }) => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-full animate-in fade-in slide-in-from-left-4 duration-500">
-      <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="flex flex-col lg:flex-row gap-4 h-full animate-in fade-in slide-in-from-left-4 duration-500 relative">
+      {/* Mobile Tab Switcher */}
+      <div className="lg:hidden flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 mb-2 shrink-0">
+        <button 
+          onClick={() => setActiveMobileTab('products')}
+          className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            activeMobileTab === 'products' ? 'bg-[#800000] text-white shadow-lg shadow-red-900/20' : 'text-gray-400'
+          }`}
+        >
+          Products
+        </button>
+        <button 
+          onClick={() => setActiveMobileTab('cart')}
+          className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative ${
+            activeMobileTab === 'cart' ? 'bg-[#800000] text-white shadow-lg shadow-red-900/20' : 'text-gray-400'
+          }`}
+        >
+          Cart
+          {cart.length > 0 && (
+            <span className="absolute top-2 right-4 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+              {cart.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className={`flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden ${activeMobileTab === 'cart' ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-4 space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {categories.map(cat => (
@@ -254,7 +280,7 @@ const POS: React.FC<POSProps> = ({ user }) => {
         </div>
       </div>
 
-      <div className="w-full lg:w-[400px] flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden shrink-0">
+      <div className={`w-full lg:w-[400px] flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden shrink-0 ${activeMobileTab === 'products' ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-4 bg-[#800000] text-white flex justify-between items-center">
           <h3 className="font-black text-sm uppercase tracking-widest">Cart Checkout</h3>
           <span className="bg-white/20 text-white text-[10px] px-2 py-1 rounded-full font-bold">{cart.length} items</span>

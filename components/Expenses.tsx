@@ -93,33 +93,35 @@ const Expenses: React.FC<ExpensesProps> = ({ user }) => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount (KES)</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {expenses.map(e => (
-              <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-4 text-xs font-bold text-gray-500">{new Date(e.date).toLocaleDateString()}</td>
-                <td className="px-6 py-4"><span className="px-2 py-1 rounded-md bg-red-50 text-red-700 text-[10px] font-black uppercase">{e.category}</span></td>
-                <td className="px-6 py-4 text-sm font-bold text-gray-800">{e.description}</td>
-                <td className="px-6 py-4 text-right font-black text-red-600">KES {e.amount.toLocaleString()}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => handleDelete(e.id)} className="text-gray-400 hover:text-red-500 transition-colors">🗑️</button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[600px]">
+            <thead className="bg-gray-50/50 border-b">
+              <tr>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount (KES)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
-            ))}
-            {expenses.length === 0 && (
-              <tr><td colSpan={5} className="px-6 py-20 text-center text-gray-400 opacity-50 font-bold">No expense records found</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {expenses.map(e => (
+                <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4 text-xs font-bold text-gray-500">{new Date(e.date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4"><span className="px-2 py-1 rounded-md bg-red-50 text-red-700 text-[10px] font-black uppercase">{e.category}</span></td>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-800">{e.description}</td>
+                  <td className="px-6 py-4 text-right font-black text-red-600">KES {e.amount.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => handleDelete(e.id)} className="text-gray-400 hover:text-red-500 transition-colors">🗑️</button>
+                  </td>
+                </tr>
+              ))}
+              {expenses.length === 0 && (
+                <tr><td colSpan={5} className="px-6 py-20 text-center text-gray-400 opacity-50 font-bold">No expense records found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {isModalOpen && (

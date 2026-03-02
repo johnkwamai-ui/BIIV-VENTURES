@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { storage } from '../services/storage';
+import { db, firebaseConfig } from '../services/firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -26,6 +29,7 @@ const UsersManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     username: '',
+    email: '',
     password: '',
     role: UserRole.SALESPERSON
   });
@@ -36,52 +40,77 @@ const UsersManagement: React.FC = () => {
       setFormData({
         name: user.name,
         username: user.username,
+        email: user.email,
         password: '', // Don't show existing hash
         role: user.role
       });
     } else {
       setEditingUser(null);
-      setFormData({ name: '', username: '', password: '', role: UserRole.SALESPERSON });
+      setFormData({ name: '', username: '', email: '', password: '', role: UserRole.SALESPERSON });
     }
     setIsModalOpen(true);
   };
 
+  const [saving, setSaving] = useState(false);
+
   const handleSave = async () => {
-    if (!formData.name || !formData.username || (!editingUser && !formData.password)) {
+    if (!formData.name || !formData.username || !formData.email || (!editingUser && !formData.password)) {
       alert("Please fill all fields.");
       return;
     }
 
+    setSaving(true);
     try {
       let updatedList: User[];
       if (editingUser) {
+        // For editing, we only update Firestore. 
+        // Firebase Auth email/password update is more complex (requires re-auth)
         updatedList = users.map(u => 
           u.id === editingUser.id ? { 
             ...u, 
             name: formData.name, 
             username: formData.username, 
+            email: formData.email,
             role: formData.role,
-            passwordHash: formData.password || u.passwordHash // only update password if provided
+            passwordHash: formData.password || u.passwordHash
           } : u
         );
+        await storage.saveUsers(updatedList);
       } else {
+        // Create in Firebase Auth using a secondary app to avoid signing out the current admin
+        const secondaryApp = initializeApp(firebaseConfig, 'Secondary');
+        const secondaryAuth = getAuth(secondaryApp);
+        
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+        const firebaseUser = userCredential.user;
+
         const newUser: User = {
-          id: `USER-${Date.now()}`,
+          id: firebaseUser.uid,
           name: formData.name,
           username: formData.username,
+          email: formData.email,
           passwordHash: formData.password,
           role: formData.role,
           createdAt: Date.now()
         };
         updatedList = [...users, newUser];
+        await storage.saveUsers(updatedList);
+        
+        // Cleanup secondary app
+        await deleteApp(secondaryApp);
       }
 
-      await storage.saveUsers(updatedList);
       setUsers(updatedList);
       setIsModalOpen(false);
-    } catch (err) {
-      alert('Error saving user.');
+    } catch (err: any) {
+      if (err.code === 'auth/configuration-not-found') {
+        alert('Firebase Authentication is not enabled. Please enable "Email/Password" provider in your Firebase Console.');
+      } else {
+        alert('Error saving user: ' + err.message);
+      }
       console.error(err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -130,6 +159,7 @@ const UsersManagement: React.FC = () => {
             </div>
             <h4 className="font-bold text-lg">{u.name}</h4>
             <p className="text-gray-500 text-sm">@{u.username}</p>
+            <p className="text-gray-400 text-xs">{u.email}</p>
             <span className={`mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase ${
               u.role === UserRole.ADMIN ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
             }`}>
@@ -173,6 +203,15 @@ const UsersManagement: React.FC = () => {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#800000]"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {editingUser ? 'New Password (leave blank to keep current)' : 'Initial Password'}
                 </label>
@@ -201,8 +240,11 @@ const UsersManagement: React.FC = () => {
                 >Cancel</button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 py-2 bg-[#800000] text-white rounded-lg font-bold hover:bg-red-900"
-                >Save User</button>
+                  disabled={saving}
+                  className="flex-1 py-2 bg-[#800000] text-white rounded-lg font-bold hover:bg-red-900 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save User'}
+                </button>
               </div>
             </div>
           </div>

@@ -142,7 +142,7 @@ const Inventory: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead className="bg-gray-50/50 border-b border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Product Details</th>
@@ -187,46 +187,46 @@ const Inventory: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-8 animate-in zoom-in duration-200">
-            <h3 className="text-2xl font-black mb-6 text-gray-800">{editingProduct ? 'Update Inventory' : 'Add New Item'}</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-6 md:p-8 animate-in zoom-in duration-200 my-auto">
+            <h3 className="text-xl md:text-2xl font-black mb-6 text-gray-800">{editingProduct ? 'Update Inventory' : 'Add New Item'}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Product Name</label>
-                <input type="text" className="w-full px-4 py-2 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Barcode / SKU</label>
-                <input type="text" className="w-full px-4 py-2 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} />
+                <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Category</label>
-                <select className="w-full px-4 py-2 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <select className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Unit</label>
-                <select className="w-full px-4 py-2 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})}>
+                <select className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})}>
                   {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Current Stock</label>
-                <input type="number" className="w-full px-4 py-2 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.stockQuantity} onChange={e => setFormData({...formData, stockQuantity: Number(e.target.value)})} />
+                <input type="number" className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.stockQuantity} onChange={e => setFormData({...formData, stockQuantity: Number(e.target.value)})} />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Buying Cost (KES)</label>
-                <input type="number" className="w-full px-4 py-2 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.buyingPrice} onChange={e => setFormData({...formData, buyingPrice: Number(e.target.value)})} />
+                <input type="number" className="w-full px-4 py-2.5 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.buyingPrice} onChange={e => setFormData({...formData, buyingPrice: Number(e.target.value)})} />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Selling Price (KES)</label>
-                <input type="number" className="w-full px-4 py-2 bg-[#800000]/5 border border-[#800000]/20 text-[#800000] font-black rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
+                <input type="number" className="w-full px-4 py-2.5 bg-[#800000]/5 border border-[#800000]/20 text-[#800000] font-black rounded-xl outline-none focus:ring-2 focus:ring-[#800000]" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
               </div>
             </div>
-            <div className="flex gap-4 mt-10">
-              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50">Discard</button>
-              <button onClick={handleSave} className="flex-1 py-3 bg-[#800000] text-white rounded-xl font-bold hover:bg-red-900 shadow-lg shadow-red-900/20">Save Product</button>
+            <div className="flex flex-col md:flex-row gap-3 mt-8 md:mt-10">
+              <button onClick={() => setIsModalOpen(false)} className="order-2 md:order-1 flex-1 py-3 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50">Discard</button>
+              <button onClick={handleSave} className="order-1 md:order-2 flex-1 py-3 bg-[#800000] text-white rounded-xl font-bold hover:bg-red-900 shadow-lg shadow-red-900/20">Save Product</button>
             </div>
           </div>
         </div>

@@ -2,6 +2,9 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { storage } from '../services/storage';
+import { auth, db } from '../services/firebase';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface PasswordResetProps {
   user: User;
@@ -12,44 +15,52 @@ const PasswordReset: React.FC<PasswordResetProps> = ({ user }) => {
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [loading, setLoading] = useState(false);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setMessage({ text: '', type: '' });
     
-    // In our simplified storage, we store plain text as hash for demonstration.
-    // Real apps use bcrypt compare.
-    if (currentPass !== user.passwordHash) {
-      setMessage({ text: 'Current password is incorrect.', type: 'error' });
-      return;
-    }
-
     if (newPass !== confirmPass) {
       setMessage({ text: 'New passwords do not match.', type: 'error' });
       return;
     }
 
-    if (newPass.length < 4) {
-      setMessage({ text: 'Password must be at least 4 characters.', type: 'error' });
+    if (newPass.length < 6) {
+      setMessage({ text: 'Password must be at least 6 characters for Firebase.', type: 'error' });
       return;
     }
 
+    setLoading(true);
     try {
-      const users = await storage.getUsers();
-      const updatedUsers = users.map(u => 
-        u.id === user.id ? { ...u, passwordHash: newPass } : u
-      );
-      
-      await storage.saveUsers(updatedUsers);
-      // Update local session as well
-      storage.setCurrentUser({ ...user, passwordHash: newPass });
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) throw new Error("No user logged in");
+
+      // Re-authenticate user before updating password
+      const credential = EmailAuthProvider.credential(firebaseUser.email!, currentPass);
+      await reauthenticateWithCredential(firebaseUser, credential);
+
+      // Update Firebase Auth password
+      await updatePassword(firebaseUser, newPass);
+
+      // Update Firestore user document
+      await updateDoc(doc(db, 'users', firebaseUser.uid), {
+        passwordHash: newPass // Still keeping this for legacy/reference if needed
+      });
 
       setMessage({ text: 'Password updated successfully!', type: 'success' });
       setCurrentPass('');
       setNewPass('');
       setConfirmPass('');
-    } catch (err) {
-      setMessage({ text: 'Error updating password.', type: 'error' });
+    } catch (err: any) {
+      if (err.code === 'auth/wrong-password') {
+        setMessage({ text: 'Current password is incorrect.', type: 'error' });
+      } else {
+        setMessage({ text: 'Error updating password: ' + (err.message || 'Unknown error'), type: 'error' });
+      }
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,9 +112,10 @@ const PasswordReset: React.FC<PasswordResetProps> = ({ user }) => {
           </div>
           <button
             type="submit"
-            className="w-full py-3 bg-[#800000] text-white rounded-xl font-bold hover:bg-red-900 transition-colors mt-4"
+            disabled={loading}
+            className="w-full py-3 bg-[#800000] text-white rounded-xl font-bold hover:bg-red-900 transition-colors mt-4 disabled:opacity-50"
           >
-            Update Password
+            {loading ? 'Updating...' : 'Update Password'}
           </button>
         </form>
       </div>

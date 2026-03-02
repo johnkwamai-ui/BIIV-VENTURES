@@ -282,8 +282,9 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-50 border-b">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead className="bg-gray-50 border-b">
             <tr>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Transaction ID</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Date</th>
@@ -341,25 +342,26 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
           </tbody>
         </table>
       </div>
+    </div>
 
       {editingSale && editForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 space-y-4">
-            <div className="flex justify-between items-center border-b pb-4">
-              <h3 className="text-xl font-bold flex items-center space-x-2">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-4 md:p-6 space-y-4 my-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+              <h3 className="text-lg md:text-xl font-bold flex items-center space-x-2">
                 <span className="text-[#800000]">✏️</span>
-                <span>Edit Transaction: {editingSale.id}</span>
+                <span className="truncate">Edit: {editingSale.id}</span>
               </h3>
               <button 
                 onClick={() => handleReturnSale(editingSale)}
-                className="px-4 py-2 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-sm font-bold hover:bg-amber-200 transition-colors"
+                className="w-full md:w-auto px-4 py-2 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-sm font-bold hover:bg-amber-200 transition-colors"
               >
                 🔄 Mark as Returned
               </button>
             </div>
             
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="border rounded-xl overflow-hidden overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="px-4 py-2 text-left">Item Name</th>
@@ -387,12 +389,12 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
               </table>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl">
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Payment Method</label>
                   <select 
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-[#800000]"
                     value={editForm.paymentMethod}
                     onChange={(e) => setEditForm({...editForm, paymentMethod: e.target.value as PaymentMethod})}
                   >
@@ -403,7 +405,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Discount (KES)</label>
                   <input 
                     type="number" 
-                    className="w-full p-2 border rounded" 
+                    className="w-full p-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-[#800000]" 
                     value={editForm.discount}
                     onChange={(e) => setEditForm({...editForm, discount: Number(e.target.value)})}
                   />
@@ -414,7 +416,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Amount Paid (KES)</label>
                   <input 
                     type="number" 
-                    className="w-full p-2 border rounded font-bold text-[#800000]" 
+                    className="w-full p-2.5 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-[#800000] font-bold text-[#800000]" 
                     value={editForm.amountPaid}
                     onChange={(e) => setEditForm({...editForm, amountPaid: Number(e.target.value)})}
                   />
@@ -428,7 +430,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ user }) => {
               </div>
             </div>
 
-            <div className="flex space-x-4 pt-4">
+            <div className="flex flex-col md:flex-row gap-3 pt-2">
               <button 
                 onClick={() => setEditingSale(null)}
                 className="flex-1 py-3 border border-gray-300 rounded-xl font-bold hover:bg-gray-50 text-gray-600"

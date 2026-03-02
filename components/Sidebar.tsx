@@ -7,9 +7,11 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   role: UserRole;
   onLogout: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, role, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, role, onLogout, isOpen, onClose }) => {
   const isAdmin = role === UserRole.ADMIN;
 
   const navItems = [
@@ -26,25 +28,35 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, role, onLogo
   ];
 
   return (
-    <aside className="w-20 md:w-64 bg-[#800000] text-white flex flex-col shrink-0 no-print transition-all">
-      <div className="p-4 md:p-6 text-center md:text-left">
-        <h2 className="text-xl md:text-2xl font-black tracking-tighter leading-tight">BIIV</h2>
-        <p className="hidden md:block text-[10px] uppercase font-bold tracking-[0.2em] opacity-60">VENTURES LTD.</p>
+    <aside className={`fixed md:static inset-y-0 left-0 z-30 w-64 bg-[#800000] text-white flex flex-col shrink-0 no-print transition-transform duration-300 ease-in-out ${
+      isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+    }`}>
+      <div className="p-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-black tracking-tighter leading-tight">BIIV</h2>
+          <p className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-60">VENTURES LTD.</p>
+        </div>
+        <button 
+          onClick={onClose}
+          className="md:hidden p-2 text-red-200 hover:bg-red-900/50 rounded-lg"
+        >
+          <span className="text-2xl">✕</span>
+        </button>
       </div>
 
-      <nav className="flex-1 mt-4 px-2 md:px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 mt-4 px-3 space-y-1 overflow-y-auto">
         {navItems.filter(item => item.show).map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center md:space-x-3 px-3 md:px-4 py-3 rounded-xl transition-all ${
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
               activeTab === item.id 
                 ? 'bg-white text-[#800000] font-bold shadow-lg' 
                 : 'hover:bg-red-900/50 text-red-100'
             }`}
           >
-            <span className="text-xl mx-auto md:mx-0">{item.icon}</span>
-            <span className="hidden md:block text-sm">{item.label}</span>
+            <span className="text-xl">{item.icon}</span>
+            <span className="text-sm">{item.label}</span>
           </button>
         ))}
       </nav>
@@ -52,10 +64,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, role, onLogo
       <div className="p-4 border-t border-red-900/50">
         <button 
           onClick={onLogout}
-          className="w-full flex items-center md:space-x-3 px-3 md:px-4 py-3 rounded-xl hover:bg-red-900/50 text-red-200 transition-colors"
+          className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-red-900/50 text-red-200 transition-colors"
         >
-          <span className="text-xl mx-auto md:mx-0">🚪</span>
-          <span className="hidden md:block text-sm">Logout</span>
+          <span className="text-xl">🚪</span>
+          <span className="text-sm">Logout</span>
         </button>
       </div>
     </aside>

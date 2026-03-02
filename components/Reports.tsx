@@ -96,15 +96,15 @@ const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-700">
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-gray-800 tracking-tight">Business Financials</h2>
           <p className="text-xs text-gray-400 font-medium">Performance analysis for the selected period</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <input type="date" className="text-xs p-2.5 border rounded-xl outline-none" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          <input type="date" className="text-xs p-2.5 border rounded-xl outline-none" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          <button onClick={downloadSalesCSV} className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors">📥 Export</button>
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <input type="date" className="flex-1 md:flex-none text-xs p-2.5 border rounded-xl outline-none" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <input type="date" className="flex-1 md:flex-none text-xs p-2.5 border rounded-xl outline-none" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <button onClick={downloadSalesCSV} className="w-full md:w-auto p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors">📥 Export</button>
         </div>
       </div>
 
@@ -131,7 +131,7 @@ const Reports: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <h3 className="text-lg font-black mb-4">Top Performance Products</h3>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full text-sm text-left min-w-[500px]">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase">Product</th>
