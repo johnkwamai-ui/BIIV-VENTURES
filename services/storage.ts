@@ -24,12 +24,34 @@ const INITIAL_ADMIN: User = {
   createdAt: Date.now()
 };
 
+const cleanObject = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanObject(item));
+  }
+  
+  // Handle objects
+  const newObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const val = obj[key];
+      // Explicitly skip undefined
+      if (val !== undefined) {
+        newObj[key] = cleanObject(val);
+      }
+    }
+  }
+  return newObj;
+};
+
 export const storage = {
   getUsers: async (): Promise<User[]> => {
     const querySnapshot = await getDocs(collection(db, 'users'));
     const data = querySnapshot.docs.map(doc => doc.data() as User);
     if (data.length === 0) {
-      await setDoc(doc(db, 'users', INITIAL_ADMIN.id), INITIAL_ADMIN);
+      await setDoc(doc(db, 'users', INITIAL_ADMIN.id), cleanObject(INITIAL_ADMIN));
       return [INITIAL_ADMIN];
     }
     return data;
@@ -37,8 +59,9 @@ export const storage = {
   saveUsers: async (users: User[]) => {
     const batch = writeBatch(db);
     users.forEach(user => {
+      if (!user || !user.id) return;
       const userRef = doc(db, 'users', user.id);
-      batch.set(userRef, user);
+      batch.set(userRef, cleanObject(user));
     });
     await batch.commit();
   },
@@ -50,8 +73,9 @@ export const storage = {
   saveProducts: async (products: Product[]) => {
     const batch = writeBatch(db);
     products.forEach(product => {
+      if (!product || !product.id) return;
       const productRef = doc(db, 'products', product.id);
-      batch.set(productRef, product);
+      batch.set(productRef, cleanObject(product));
     });
     await batch.commit();
   },
@@ -66,8 +90,14 @@ export const storage = {
   saveSales: async (sales: Sale[]) => {
     const batch = writeBatch(db);
     sales.forEach(sale => {
+      if (!sale || !sale.id) return;
       const saleRef = doc(db, 'sales', sale.id);
-      batch.set(saleRef, sale);
+      const cleaned = cleanObject(sale);
+      // Final safety check for customerId specifically since it was the reported error
+      if (cleaned.customerId === undefined) {
+        delete cleaned.customerId;
+      }
+      batch.set(saleRef, cleaned);
     });
     await batch.commit();
   },
@@ -80,7 +110,7 @@ export const storage = {
     const batch = writeBatch(db);
     expenses.forEach(expense => {
       const expenseRef = doc(db, 'expenses', expense.id);
-      batch.set(expenseRef, expense);
+      batch.set(expenseRef, cleanObject(expense));
     });
     await batch.commit();
   },
@@ -93,7 +123,7 @@ export const storage = {
     const batch = writeBatch(db);
     customers.forEach(customer => {
       const customerRef = doc(db, 'customers', customer.id);
-      batch.set(customerRef, customer);
+      batch.set(customerRef, cleanObject(customer));
     });
     await batch.commit();
   },
@@ -113,7 +143,7 @@ export const storage = {
     return querySnapshot.docs.map(doc => doc.data() as Payment);
   },
   savePayment: async (payment: Payment) => {
-    await setDoc(doc(db, 'payments', payment.id), payment);
+    await setDoc(doc(db, 'payments', payment.id), cleanObject(payment));
   },
 
   getLogs: async (): Promise<DeletionLog[]> => {
@@ -124,7 +154,7 @@ export const storage = {
     const batch = writeBatch(db);
     logs.forEach(log => {
       const logRef = doc(db, 'deletion_logs', log.id);
-      batch.set(logRef, log);
+      batch.set(logRef, cleanObject(log));
     });
     await batch.commit();
   },
@@ -137,7 +167,7 @@ export const storage = {
     const batch = writeBatch(db);
     logs.forEach(log => {
       const logRef = doc(db, 'sale_edit_logs', log.id);
-      batch.set(logRef, log);
+      batch.set(logRef, cleanObject(log));
     });
     await batch.commit();
   },
@@ -150,7 +180,7 @@ export const storage = {
     const batch = writeBatch(db);
     logs.forEach(log => {
       const logRef = doc(db, 'return_logs', log.id);
-      batch.set(logRef, log);
+      batch.set(logRef, cleanObject(log));
     });
     await batch.commit();
   },
@@ -198,9 +228,9 @@ export const storage = {
     ];
 
     const batch = writeBatch(db);
-    dummyProducts.forEach(p => batch.set(doc(db, 'products', p.id), p));
-    dummyUsers.forEach(u => batch.set(doc(db, 'users', u.id), u));
-    dummyExpense.forEach(e => batch.set(doc(db, 'expenses', e.id), e));
+    dummyProducts.forEach(p => batch.set(doc(db, 'products', p.id), cleanObject(p)));
+    dummyUsers.forEach(u => batch.set(doc(db, 'users', u.id), cleanObject(u)));
+    dummyExpense.forEach(e => batch.set(doc(db, 'expenses', e.id), cleanObject(e)));
     await batch.commit();
     return { message: 'Database seeded successfully' };
   },
