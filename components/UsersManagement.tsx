@@ -4,7 +4,7 @@ import { User, UserRole } from '../types';
 import { storage } from '../services/storage';
 import { db, firebaseConfig } from '../services/firebase';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 
 const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -31,7 +31,8 @@ const UsersManagement: React.FC = () => {
     username: '',
     email: '',
     password: '',
-    role: UserRole.SALESPERSON
+    role: UserRole.SALESPERSON,
+    sendInvite: true
   });
 
   const handleOpenModal = (user?: User) => {
@@ -42,11 +43,12 @@ const UsersManagement: React.FC = () => {
         username: user.username,
         email: user.email,
         password: '', // Don't show existing hash
-        role: user.role
+        role: user.role,
+        sendInvite: false
       });
     } else {
       setEditingUser(null);
-      setFormData({ name: '', username: '', email: '', password: '', role: UserRole.SALESPERSON });
+      setFormData({ name: '', username: '', email: '', password: '', role: UserRole.SALESPERSON, sendInvite: true });
     }
     setIsModalOpen(true);
   };
@@ -54,7 +56,7 @@ const UsersManagement: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.username || !formData.email || (!editingUser && !formData.password)) {
+    if (!formData.name || !formData.username || !formData.email || (!editingUser && !formData.password && !formData.sendInvite)) {
       alert("Please fill all fields.");
       return;
     }
@@ -81,8 +83,12 @@ const UsersManagement: React.FC = () => {
         const secondaryApp = initializeApp(firebaseConfig, 'Secondary');
         const secondaryAuth = getAuth(secondaryApp);
         
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password || Math.random().toString(36).slice(-8));
         const firebaseUser = userCredential.user;
+
+        if (formData.sendInvite) {
+          await sendPasswordResetEmail(secondaryAuth, formData.email);
+        }
 
         const newUser: User = {
           id: firebaseUser.uid,
@@ -213,7 +219,7 @@ const UsersManagement: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {editingUser ? 'New Password (leave blank to keep current)' : 'Initial Password'}
+                  {editingUser ? 'New Password (leave blank to keep current)' : (formData.sendInvite ? 'Initial Password (optional)' : 'Initial Password')}
                 </label>
                 <input
                   type="password"
@@ -233,6 +239,20 @@ const UsersManagement: React.FC = () => {
                   <option value={UserRole.ADMIN}>Administrator</option>
                 </select>
               </div>
+              {!editingUser && (
+                <div className="flex items-center gap-2 py-2">
+                  <input
+                    type="checkbox"
+                    id="sendInvite"
+                    checked={formData.sendInvite}
+                    onChange={(e) => setFormData({...formData, sendInvite: e.target.checked})}
+                    className="w-4 h-4 text-[#800000] focus:ring-[#800000] border-gray-300 rounded"
+                  />
+                  <label htmlFor="sendInvite" className="text-sm font-medium text-gray-700">
+                    Send invite link to set password
+                  </label>
+                </div>
+              )}
               <div className="flex gap-4 mt-8">
                 <button
                   onClick={() => setIsModalOpen(false)}

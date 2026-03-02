@@ -15,10 +15,10 @@ import {
 const SESSION_KEY = 'b7_session';
 
 const INITIAL_ADMIN: User = {
-  id: 'wamai-admin',
-  name: 'Kahoro Wamai',
-  username: 'wamai',
-  email: 'wamai@kahoro.com',
+  id: 'admin-john',
+  name: 'John Qiao',
+  username: 'johnqiao',
+  email: 'johnqiao23@gmail.com',
   passwordHash: 'wamai10204111',
   role: UserRole.ADMIN,
   createdAt: Date.now()
@@ -189,8 +189,8 @@ export const storage = {
     ];
 
     const dummyUsers: User[] = [
-      { id: adminUid || 'wamai-admin', name: 'Kahoro Wamai', username: 'wamai', email: 'wamai@kahoro.com', passwordHash: 'wamai10204111', role: UserRole.ADMIN, createdAt: Date.now() },
-      { id: salesUid || 'john-sales', name: 'John Mukunga', username: 'john', email: 'john@kahoro.com', passwordHash: 'Mukunga1234', role: UserRole.SALESPERSON, createdAt: Date.now() },
+      { id: adminUid || 'admin-john', name: 'John Qiao', username: 'johnqiao', email: 'johnqiao23@gmail.com', passwordHash: 'wamai10204111', role: UserRole.ADMIN, createdAt: Date.now() },
+      { id: salesUid || 'john-sales', name: 'John Mukunga', username: 'john', email: 'mukungajohn@gmail.com', passwordHash: 'Mukunga1234', role: UserRole.SALESPERSON, createdAt: Date.now() },
     ];
 
     const dummyExpense: Expense[] = [
@@ -203,5 +203,16 @@ export const storage = {
     dummyExpense.forEach(e => batch.set(doc(db, 'expenses', e.id), e));
     await batch.commit();
     return { message: 'Database seeded successfully' };
+  },
+
+  clearDatabase: async () => {
+    const collections = ['users', 'products', 'sales', 'expenses', 'customers', 'payments', 'deletion_logs', 'sale_edit_logs', 'return_logs'];
+    for (const collName of collections) {
+      const snapshot = await getDocs(collection(db, collName));
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+    console.log('Database cleared successfully');
   }
 };

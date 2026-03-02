@@ -33,7 +33,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     const checkInitialization = async () => {
       try {
         const q = await import('firebase/firestore').then(m => 
-          m.getDocs(m.query(m.collection(db, 'users'), m.limit(1)))
+          m.getDocs(m.query(m.collection(db, 'users'), m.where('email', '==', 'johnqiao23@gmail.com'), m.limit(1)))
         );
         const initialized = !q.empty;
         setIsInitialized(initialized);
@@ -79,8 +79,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     } catch (err: any) {
       if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
         setError('Firebase Authentication is not fully configured. Please enable the "Email/Password" provider in your Firebase Console (Authentication > Sign-in method).');
-      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password. If this is a new deployment, please wait a moment for the system to initialize.');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.message?.includes('invalid-credential')) {
+        setError('Invalid email or password. This usually means the account hasn\'t been created yet or the password is incorrect. Please try the "Re-initialize" button below if you just deployed.');
       } else if (err.code === 'auth/network-request-failed') {
         setError('Network error. Please check your internet connection and Firebase configuration.');
       } else {
@@ -93,13 +93,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   const handleInitialize = async (isAuto = false) => {
-    if (!isAuto && !window.confirm('This will create the default Admin and Salesperson accounts. Continue?')) return;
+    if (!isAuto && !window.confirm('This will CLEAR ALL DATA and re-create the default Admin and Salesperson accounts. Continue?')) return;
     setLoading(true);
     setError('');
     try {
+      // If manually triggered, clear the database first
+      if (!isAuto) {
+        console.log('Clearing database before re-initialization...');
+        await storage.clearDatabase();
+      }
+
       const usersToCreate = [
-        { email: 'wamai@kahoro.com', pass: 'wamai10204111', name: 'Kahoro Wamai', username: 'wamai', role: 'Admin', id: 'wamai-admin' },
-        { email: 'john@kahoro.com', pass: 'Mukunga1234', name: 'John Mukunga', username: 'john', role: 'Salesperson', id: 'john-sales' }
+        { email: 'johnqiao23@gmail.com', pass: 'wamai10204111', name: 'John Qiao', username: 'johnqiao', role: 'Admin', id: 'admin-john' },
+        { email: 'mukungajohn@gmail.com', pass: 'Mukunga1234', name: 'John Mukunga', username: 'john', role: 'Salesperson', id: 'john-sales' }
       ];
 
       let adminUid = '';
@@ -108,24 +114,34 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       for (const u of usersToCreate) {
         try {
           // Create in Auth
+          console.log(`Attempting to create user: ${u.email}`);
           const cred = await import('firebase/auth').then(m => m.createUserWithEmailAndPassword(auth, u.email, u.pass));
           if (u.role === 'Admin') adminUid = cred.user.uid;
           else salesUid = cred.user.uid;
           
           await auth.signOut();
+          console.log(`Successfully created user: ${u.email}`);
         } catch (e: any) {
           if (e.code === 'auth/email-already-in-use') {
-            console.log(`${u.email} already exists in Auth, attempting to link...`);
+            console.log(`${u.email} already exists in Auth, attempting to get UID...`);
             // Try to sign in to get the UID
             try {
               const cred = await import('firebase/auth').then(m => m.signInWithEmailAndPassword(auth, u.email, u.pass));
               if (u.role === 'Admin') adminUid = cred.user.uid;
               else salesUid = cred.user.uid;
               await auth.signOut();
-            } catch (signInErr) {
-              console.error(`Could not get UID for existing user ${u.email}:`, signInErr);
+              console.log(`Successfully retrieved UID for existing user: ${u.email}`);
+            } catch (signInErr: any) {
+              console.error(`Could not sign in to existing user ${u.email}. This might be due to a password mismatch:`, signInErr);
+              // If we can't sign in, we can't get the UID easily. 
+              // We'll proceed and let seedDatabase use the fallback IDs, 
+              // but we should warn the user.
+              if (signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/wrong-password') {
+                setError(`User ${u.email} already exists but the password in the system doesn't match. Please delete this user from your Firebase Auth console and try again, or use the existing password.`);
+              }
             }
           } else {
+            console.error(`Error creating user ${u.email}:`, e);
             throw e;
           }
         }
@@ -176,6 +192,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <div className="flex items-center">
                   <span className="mr-2">⚠️</span> {error}
                 </div>
+                
+                {error.includes('Invalid email or password') && (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleInitialize(false)}
+                      className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-800 py-2 px-3 rounded-lg transition-colors font-bold uppercase tracking-tight"
+                    >
+                      Try Re-initializing System
+                    </button>
+                    <p className="text-[10px] text-red-600 font-normal">
+                      Note: Default Admin password is <strong>wamai10204111</strong>. 
+                      If you changed it in Firebase Console, please use your new password.
+                    </p>
+                  </div>
+                )}
+
                 {error.includes('configuration-not-found') || error.includes('operation-not-allowed') ? (
                   <div className="mt-2 p-3 bg-white/50 rounded-lg border border-red-200 text-xs font-normal">
                     <p className="font-bold mb-1">To fix this:</p>
@@ -264,29 +297,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <button
               type="button"
               onClick={() => handleInitialize(false)}
-              className="w-full py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
+              className="w-full py-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center gap-1"
             >
-              System not ready? Click to initialize manually
+              <span>⚙️</span> System not working? Force Reset & Re-initialize
             </button>
           )}
         </form>
         
         <div className="bg-yellow-50 p-4 text-center border-t border-yellow-100">
-          <div className="mb-4 p-3 bg-white/50 rounded-xl border border-yellow-200 text-[10px] text-gray-500 text-left">
-            <p className="font-bold uppercase mb-1 text-gray-600">Default Credentials:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="font-bold text-gray-700">Admin:</p>
-                <p>wamai@kahoro.com</p>
-                <p>wamai10204111</p>
-              </div>
-              <div>
-                <p className="font-bold text-gray-700">Sales:</p>
-                <p>john@kahoro.com</p>
-                <p>Mukunga1234</p>
-              </div>
-            </div>
-          </div>
           <p className="text-xs text-gray-400 font-medium">&copy; 2024 BIIV VENTURES LTD. All rights reserved.</p>
         </div>
       </div>
